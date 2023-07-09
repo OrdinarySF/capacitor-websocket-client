@@ -17,10 +17,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OrdinarySF/capacitor-websocket-client.git.git"
+    "url": "git+https://github.com/OrdinarySF/capacitor-websocket-client.git"
   },
   "bugs": {
-    "url": "https://github.com/OrdinarySF/capacitor-websocket-client.git/issues"
+    "url": "https://github.com/OrdinarySF/capacitor-websocket-client/issues"
   },
   "keywords": [
     "capacitor",
