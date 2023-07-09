@@ -1,6 +1,6 @@
 {
   "name": "@wahr/capacitor-websocket-client",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Capacitor WebSocket Client Plugin.",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
