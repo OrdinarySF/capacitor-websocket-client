@@ -1,11 +1,11 @@
-# @ordinary/capacitor-websocket-client
+# @wahr/capacitor-websocket-client
 
 Capacitor WebSocket Client Plugin.
 
 ## Install
 
 ```bash
-npm install @ordinary/capacitor-websocket-client
+npm install @wahr/capacitor-websocket-client
 npx cap sync
 ```
 

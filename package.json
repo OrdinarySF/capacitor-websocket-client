@@ -1,5 +1,5 @@
 {
-  "name": "@ordinary/capacitor-websocket-client",
+  "name": "@wahr/capacitor-websocket-client",
   "version": "0.0.1",
   "description": "Capacitor WebSocket Client Plugin.",
   "main": "dist/plugin.cjs.js",
@@ -11,7 +11,7 @@
     "android/build.gradle",
     "dist/",
     "ios/Plugin/",
-    "OrdinaryCapacitorWebsocketClient.podspec"
+    "WahrCapacitorWebsocketClient.podspec"
   ],
   "author": "Ordinary SF",
   "license": "MIT",
