@@ -9,7 +9,7 @@ import okhttp3.internal.wait
 
 @CapacitorPlugin(name = "WebSocket")
 class WebSocketPlugin : Plugin() {
-    @PluginMethod
+    @PluginMethod(returnType = PluginMethod.RETURN_NONE)
     fun connect(call: PluginCall) {
         val id = call.getString("id") ?: "default"
         val url = getStringForCall(call, "url") ?: return
@@ -24,7 +24,7 @@ class WebSocketPlugin : Plugin() {
         call.resolve()
     }
 
-    @PluginMethod
+    @PluginMethod(returnType = PluginMethod.RETURN_NONE)
     fun send(call: PluginCall) {
         val id = call.getString("id") ?: "default"
         val data = getStringForCall(call, "data") ?: return
@@ -38,28 +38,28 @@ class WebSocketPlugin : Plugin() {
 
     @PluginMethod(returnType = PluginMethod.RETURN_CALLBACK)
     fun onOpen(call: PluginCall) {
-        val id = getStringForCall(call, "id") ?: return
+        val id = call.getString("id") ?: "default"
         call.setKeepAlive(true)
         WebSocket.onOpen(id, call.callbackId)
     }
 
     @PluginMethod(returnType = PluginMethod.RETURN_CALLBACK)
     fun onClosed(call: PluginCall) {
-        val id = getStringForCall(call, "id") ?: return
+        val id = call.getString("id") ?: "default"
         call.setKeepAlive(true)
         WebSocket.onClosed(id, call.callbackId)
     }
 
     @PluginMethod(returnType = PluginMethod.RETURN_CALLBACK)
     fun onMessage(call: PluginCall) {
-        val id = getStringForCall(call, "id") ?: return
+        val id = call.getString("id") ?: "default"
         call.setKeepAlive(true)
         WebSocket.onMessage(id, call.callbackId)
     }
 
     @PluginMethod(returnType = PluginMethod.RETURN_CALLBACK)
     fun onError(call: PluginCall) {
-        val id = getStringForCall(call, "id") ?: return
+        val id = call.getString("id") ?: "default"
         call.setKeepAlive(true)
         WebSocket.onFailure(id, call.callbackId)
     }

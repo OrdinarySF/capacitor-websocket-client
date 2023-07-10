@@ -22,7 +22,7 @@ object WebSocket {
         Log.v(TAG, "createConnect")
         val wsClient = okClient.newWebSocket(Request.Builder().url(url).build(), object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.v(TAG, "onOpen")
+                Log.v(TAG, "client onOpen called, id: $id")
 
                 if (openCallId[id] != null) {
                     val ret = JSObject()
@@ -32,7 +32,7 @@ object WebSocket {
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                Log.v(TAG, "onMessage")
+                Log.v(TAG, "client onMessage called, id: $id, text: $text")
 
                 if (messageCallId[id] != null) {
                     val ret = JSObject()
@@ -43,7 +43,7 @@ object WebSocket {
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                Log.v(TAG, "onClosing")
+                Log.v(TAG, "client onClosed called, id: $id, code: $code, reason: $reason")
 
                 if (closedCallId[id] != null) {
                     val ret = JSObject()
@@ -55,7 +55,7 @@ object WebSocket {
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.v(TAG, "onFailure")
+                Log.v(TAG, "client onFailure called, id: $id")
                 Log.e(TAG, t.message, t)
 
                 if (failureCallId[id] != null) {
@@ -76,18 +76,22 @@ object WebSocket {
     }
 
     fun onOpen(id: String, callbackId: String) {
+        Log.v(TAG, "onOpen")
         openCallId[id] = callbackId
     }
 
     fun onMessage(id: String, callbackId: String) {
+        Log.v(TAG, "onMessage")
         messageCallId[id] = callbackId
     }
 
     fun onClosed(id: String, callbackId: String) {
+        Log.v(TAG, "onClosed")
         closedCallId[id] = callbackId
     }
 
     fun onFailure(id: String, callbackId: String) {
+        Log.v(TAG, "onFailure")
         failureCallId[id] = callbackId
     }
 }

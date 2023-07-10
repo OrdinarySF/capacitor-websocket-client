@@ -27,28 +27,28 @@ export class WebSocketWeb extends WebPlugin implements WebSocketPlugin {
         await websocket.send(options.data, options.id)
     }
 
-    async onOpen(callback: OnOpenCallback, options: OnOpenOptions = {}): Promise<void> {
+    async onOpen(options: OnOpenOptions, callback: OnOpenCallback): Promise<void> {
         if (options.id === undefined) options.id = "default"
         websocket.openCalls.set(options.id, () => {
             callback.call(this, {id: options.id})
         })
     }
 
-    async onClose(callback: OnCloseCallback, options: OnCloseOptions = {}): Promise<void> {
+    async onClose(options: OnCloseOptions, callback: OnCloseCallback): Promise<void> {
         if (options.id === undefined) options.id = "default"
         websocket.closedCalls.set(options.id, (ev) => {
             callback.call(this, {id: options.id, code: ev.code, reason: ev.reason})
         })
     }
 
-    async onError(callback: OnErrorCallback, options: OnErrorOptions = {}): Promise<void> {
+    async onError(options: OnErrorOptions, callback: OnErrorCallback): Promise<void> {
         if (options.id === undefined) options.id = "default"
         websocket.failureCalls.set(options.id, (ev) => {
             callback.call(this, {id: options.id, error: JSON.stringify(ev)})
         })
     }
 
-    async onMessage(callback: OnMessageCallback, options: OnMessageOptions = {}): Promise<void> {
+    async onMessage(options: OnMessageOptions, callback: OnMessageCallback): Promise<void> {
         if (options.id === undefined) options.id = "default"
         websocket.messageCalls.set(options.id, (ev) => {
             callback.call(this, {id: options.id, data: ev.data})

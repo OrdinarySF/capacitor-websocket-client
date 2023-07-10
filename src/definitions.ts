@@ -17,33 +17,33 @@ export interface WebSocketPlugin {
      * Register a callback to be invoked when the connection is opened.
      * @param callback The callback that will be invoked.
      * @param options The options for the connection info.
-     * @since 0.0.1
+     * @since 0.0.3
      */
-    onOpen(callback: OnOpenCallback, options?: OnOpenOptions): Promise<void>;
+    onOpen(options: OnOpenOptions, callback: OnOpenCallback): Promise<void>;
 
     /**
      * Register a callback to be invoked when a message is received.
      * @param callback The callback that will be invoked.
      * @param options The options for the message info.
-     * @since 0.0.1
+     * @since 0.0.3
      */
-    onMessage(callback: OnMessageCallback, options?: OnMessageOptions): Promise<void>;
+    onMessage(options: OnMessageOptions, callback: OnMessageCallback): Promise<void>;
 
     /**
      * Register a callback to be invoked when the connection is closed.
      * @param callback The callback that will be invoked.
      * @param options The options for the connection info.
-     * @since 0.0.1
+     * @since 0.0.3
      */
-    onClose(callback: OnCloseCallback, options?: OnCloseOptions): Promise<void>;
+    onClose(options: OnCloseOptions, callback: OnCloseCallback): Promise<void>;
 
     /**
      * Register a callback to be invoked when an error occurs.
      * @param callback The callback that will be invoked.
      * @param options The options for the error info.
-     * @since 0.0.1
+     * @since 0.0.3
      */
-    onError(callback: OnErrorCallback, options?: OnErrorOptions): Promise<void>;
+    onError(options: OnErrorOptions, callback: OnErrorCallback): Promise<void>;
 }
 
 export interface ConnectionOptions {
