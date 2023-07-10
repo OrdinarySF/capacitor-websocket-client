@@ -9,6 +9,55 @@ npm install @wahr/capacitor-websocket-client
 npx cap sync
 ```
 
+## Platform support
+
+- Web
+- Android
+
+> Unfortunately, we do not have a macOS device, but we are working hard.
+
+## Example
+
+#### Single connect
+```typescript
+await WebSocket.onOpen({}, (message, err) => {
+    //do something...
+    console.log("onOpen event have a bug: ", err?.toString())
+})
+
+await WebSocket.onMessage({}, (message, err) => {
+    //do something...
+    console.log(`received message content: ${message?.data}`)
+})
+
+await WebSocket.connect({url: "ws://example.com"})
+
+setTimeout(async () => {
+    await WebSocket.send({data: "hello world!"})
+}, 2000);
+```
+#### Multiple connect
+```typescript
+await WebSocket.onOpen({id: "chat-websocket"}, (message, err) => {
+    //do something...
+    console.log("onOpen event have a bug: ", err?.toString())
+})
+
+await WebSocket.connect({url:"ws://example.com/chat", id: "chat-websocket"})
+
+await WebSocket.onMessage({id: "notify-websocket"}, (message, err) => {
+    //do something...
+    console.log(`received notify content: ${message?.data}`)
+})
+
+await WebSocket.connect({url: "ws://example.com/notify", id: "notify-websocket"})
+
+setTimeout(async () => {
+    await WebSocket.send({data: "hello world!", id: "chat-websocket"})
+    await WebSocket.send({data: "connect notify.", id: "notify-websocket"})
+}, 2000)
+```
+
 ## API
 
 <docgen-index>
@@ -64,17 +113,17 @@ Send a message.
 ### onOpen(...)
 
 ```typescript
-onOpen(callback: OnOpenCallback, options?: OnOpenOptions | undefined) => Promise<void>
+onOpen(options: OnOpenOptions, callback: OnOpenCallback) => Promise<void>
 ```
 
 Register a callback to be invoked when the connection is opened.
 
 | Param          | Type                                                      | Description                          |
 | -------------- | --------------------------------------------------------- | ------------------------------------ |
-| **`callback`** | <code><a href="#onopencallback">OnOpenCallback</a></code> | The callback that will be invoked.   |
 | **`options`**  | <code><a href="#onopenoptions">OnOpenOptions</a></code>   | The options for the connection info. |
+| **`callback`** | <code><a href="#onopencallback">OnOpenCallback</a></code> | The callback that will be invoked.   |
 
-**Since:** 0.0.1
+**Since:** 0.0.3
 
 --------------------
 
@@ -82,17 +131,17 @@ Register a callback to be invoked when the connection is opened.
 ### onMessage(...)
 
 ```typescript
-onMessage(callback: OnMessageCallback, options?: OnMessageOptions | undefined) => Promise<void>
+onMessage(options: OnMessageOptions, callback: OnMessageCallback) => Promise<void>
 ```
 
 Register a callback to be invoked when a message is received.
 
 | Param          | Type                                                            | Description                        |
 | -------------- | --------------------------------------------------------------- | ---------------------------------- |
-| **`callback`** | <code><a href="#onmessagecallback">OnMessageCallback</a></code> | The callback that will be invoked. |
 | **`options`**  | <code><a href="#onmessageoptions">OnMessageOptions</a></code>   | The options for the message info.  |
+| **`callback`** | <code><a href="#onmessagecallback">OnMessageCallback</a></code> | The callback that will be invoked. |
 
-**Since:** 0.0.1
+**Since:** 0.0.3
 
 --------------------
 
@@ -100,17 +149,17 @@ Register a callback to be invoked when a message is received.
 ### onClose(...)
 
 ```typescript
-onClose(callback: OnCloseCallback, options?: OnCloseOptions | undefined) => Promise<void>
+onClose(options: OnCloseOptions, callback: OnCloseCallback) => Promise<void>
 ```
 
 Register a callback to be invoked when the connection is closed.
 
 | Param          | Type                                                        | Description                          |
 | -------------- | ----------------------------------------------------------- | ------------------------------------ |
-| **`callback`** | <code><a href="#onclosecallback">OnCloseCallback</a></code> | The callback that will be invoked.   |
 | **`options`**  | <code><a href="#oncloseoptions">OnCloseOptions</a></code>   | The options for the connection info. |
+| **`callback`** | <code><a href="#onclosecallback">OnCloseCallback</a></code> | The callback that will be invoked.   |
 
-**Since:** 0.0.1
+**Since:** 0.0.3
 
 --------------------
 
@@ -118,17 +167,17 @@ Register a callback to be invoked when the connection is closed.
 ### onError(...)
 
 ```typescript
-onError(callback: OnErrorCallback, options?: OnErrorOptions | undefined) => Promise<void>
+onError(options: OnErrorOptions, callback: OnErrorCallback) => Promise<void>
 ```
 
 Register a callback to be invoked when an error occurs.
 
 | Param          | Type                                                        | Description                        |
 | -------------- | ----------------------------------------------------------- | ---------------------------------- |
-| **`callback`** | <code><a href="#onerrorcallback">OnErrorCallback</a></code> | The callback that will be invoked. |
 | **`options`**  | <code><a href="#onerroroptions">OnErrorOptions</a></code>   | The options for the error info.    |
+| **`callback`** | <code><a href="#onerrorcallback">OnErrorCallback</a></code> | The callback that will be invoked. |
 
-**Since:** 0.0.1
+**Since:** 0.0.3
 
 --------------------
 
@@ -152,6 +201,13 @@ Register a callback to be invoked when an error occurs.
 | **`id`**   | <code>string</code> | The ID uniquely identifies a connection; no input is required, if you do not need multiple connections. | 0.0.1 |
 
 
+#### OnOpenOptions
+
+| Prop     | Type                | Description                                                                                             | Since |
+| -------- | ------------------- | ------------------------------------------------------------------------------------------------------- | ----- |
+| **`id`** | <code>string</code> | The ID uniquely identifies a connection; no input is required, if you do not need multiple connections. | 0.0.1 |
+
+
 #### OnOpenData
 
 | Prop     | Type                | Description                                                                                             | Since |
@@ -159,7 +215,7 @@ Register a callback to be invoked when an error occurs.
 | **`id`** | <code>string</code> | The ID uniquely identifies a connection; no input is required, if you do not need multiple connections. | 0.0.1 |
 
 
-#### OnOpenOptions
+#### OnMessageOptions
 
 | Prop     | Type                | Description                                                                                             | Since |
 | -------- | ------------------- | ------------------------------------------------------------------------------------------------------- | ----- |
@@ -174,7 +230,7 @@ Register a callback to be invoked when an error occurs.
 | **`data`** | <code>string</code> | The data sent by the message emitter.                                                                   | 0.0.1 |
 
 
-#### OnMessageOptions
+#### OnCloseOptions
 
 | Prop     | Type                | Description                                                                                             | Since |
 | -------- | ------------------- | ------------------------------------------------------------------------------------------------------- | ----- |
@@ -190,7 +246,7 @@ Register a callback to be invoked when an error occurs.
 | **`reason`** | <code>string</code> | A string explaining the reason for the connection close.                                                                                                                               | 0.0.1 |
 
 
-#### OnCloseOptions
+#### OnErrorOptions
 
 | Prop     | Type                | Description                                                                                             | Since |
 | -------- | ------------------- | ------------------------------------------------------------------------------------------------------- | ----- |
@@ -198,13 +254,6 @@ Register a callback to be invoked when an error occurs.
 
 
 #### OnErrorData
-
-| Prop     | Type                | Description                                                                                             | Since |
-| -------- | ------------------- | ------------------------------------------------------------------------------------------------------- | ----- |
-| **`id`** | <code>string</code> | The ID uniquely identifies a connection; no input is required, if you do not need multiple connections. | 0.0.1 |
-
-
-#### OnErrorOptions
 
 | Prop     | Type                | Description                                                                                             | Since |
 | -------- | ------------------- | ------------------------------------------------------------------------------------------------------- | ----- |
