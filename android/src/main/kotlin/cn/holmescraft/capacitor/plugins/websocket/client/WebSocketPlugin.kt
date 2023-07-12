@@ -44,7 +44,7 @@ class WebSocketPlugin : Plugin() {
     }
 
     @PluginMethod(returnType = PluginMethod.RETURN_CALLBACK)
-    fun onClosed(call: PluginCall) {
+    fun onClose(call: PluginCall) {
         val id = call.getString("id") ?: "default"
         call.setKeepAlive(true)
         WebSocket.onClosed(id, call.callbackId)
