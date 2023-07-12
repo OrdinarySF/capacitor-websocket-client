@@ -255,9 +255,10 @@ Register a callback to be invoked when an error occurs.
 
 #### OnErrorData
 
-| Prop     | Type                | Description                                                                                             | Since |
-| -------- | ------------------- | ------------------------------------------------------------------------------------------------------- | ----- |
-| **`id`** | <code>string</code> | The ID uniquely identifies a connection; no input is required, if you do not need multiple connections. | 0.0.1 |
+| Prop        | Type                | Description                                                                                             | Since |
+| ----------- | ------------------- | ------------------------------------------------------------------------------------------------------- | ----- |
+| **`id`**    | <code>string</code> | The ID uniquely identifies a connection; no input is required, if you do not need multiple connections. | 0.0.1 |
+| **`error`** | <code>string</code> | The error message.                                                                                      | 0.0.1 |
 
 
 ### Type Aliases

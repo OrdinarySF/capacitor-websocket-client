@@ -162,14 +162,6 @@ export interface OnErrorData {
      * @since 0.0.1
      */
     id?: string;
-}
-
-export interface OnErrorData {
-    /**
-     * The ID uniquely identifies a connection; no input is required, if you do not need multiple connections.
-     * @since 0.0.1
-     */
-    id?: string;
     /**
      * The error message.
      * @since 0.0.1
