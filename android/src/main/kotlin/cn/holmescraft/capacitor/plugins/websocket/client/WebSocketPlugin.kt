@@ -25,6 +25,20 @@ class WebSocketPlugin : Plugin() {
     }
 
     @PluginMethod(returnType = PluginMethod.RETURN_NONE)
+    fun close(call: PluginCall){
+        val id = call.getString("id") ?: "default"
+        val code = call.getInt("code") ?: 1000
+        val reason = call.getString("reason") ?: ""
+
+        val result = WebSocket.close(id, code, reason)
+        if (result) {
+            call.resolve()
+        } else {
+            call.reject("Close fail")
+        }
+    }
+
+    @PluginMethod(returnType = PluginMethod.RETURN_NONE)
     fun send(call: PluginCall) {
         val id = call.getString("id") ?: "default"
         val data = getStringForCall(call, "data") ?: return

@@ -37,6 +37,12 @@ class WebsocketClient {
         if (client === undefined) throw new Error(`The connection with id: ${id} does not exist.`)
         client.send(data)
     }
+
+    async close(id: string, code?: number, reason?: string) {
+        const client = this.clients.get(id)
+        if (client === undefined) throw new Error(`The connection with id: ${id} does not exist.`)
+        client.close(code,reason)
+    }
 }
 
 const client = new WebsocketClient()

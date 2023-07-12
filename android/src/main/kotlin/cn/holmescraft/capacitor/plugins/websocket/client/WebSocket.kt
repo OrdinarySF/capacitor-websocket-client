@@ -94,4 +94,11 @@ object WebSocket {
         Log.v(TAG, "onFailure")
         failureCallId[id] = callbackId
     }
+
+    fun close(id: String, code: Int, reason: String): Boolean {
+        Log.v(TAG, "close")
+        val client = clients[id]
+        println(client)
+        return client?.close(code, reason)?:false
+    }
 }

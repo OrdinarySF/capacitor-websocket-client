@@ -63,6 +63,7 @@ setTimeout(async () => {
 <docgen-index>
 
 * [`connect(...)`](#connect)
+* [`close(...)`](#close)
 * [`send(...)`](#send)
 * [`onOpen(...)`](#onopen)
 * [`onMessage(...)`](#onmessage)
@@ -89,6 +90,21 @@ Initiate a WebSocket connection.
 | **`options`** | <code><a href="#connectionoptions">ConnectionOptions</a></code> | The options for the connection. |
 
 **Since:** 0.0.1
+
+--------------------
+
+
+### close(...)
+
+```typescript
+close(options?: CloseOptions | undefined) => Promise<void>
+```
+
+Close the connection.
+
+| Param         | Type                                                  |
+| ------------- | ----------------------------------------------------- |
+| **`options`** | <code><a href="#closeoptions">CloseOptions</a></code> |
 
 --------------------
 
@@ -191,6 +207,15 @@ Register a callback to be invoked when an error occurs.
 | --------- | ------------------- | ------------------------------------------------------------------------------------------------------- | ----- |
 | **`url`** | <code>string</code> | The URL to which to connect; this should be the URL to which the WebSocket server will respond.         | 0.0.1 |
 | **`id`**  | <code>string</code> | The ID uniquely identifies a connection; no input is required, if you do not need multiple connections. | 0.0.1 |
+
+
+#### CloseOptions
+
+| Prop         | Type                | Description                                                                                                                                                                            |
+| ------------ | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`id`**     | <code>string</code> | The ID uniquely identifies a connection; no input is required, if you do not need multiple connections.                                                                                |
+| **`code`**   | <code>number</code> | An integer WebSocket connection close code value indicating a reason for closure. Status code as defined by [Section 7.4 of RFC 6455](http://tools.ietf.org/html/rfc6455#section-7.4). |
+| **`reason`** | <code>string</code> | A string explaining the reason for the connection close.                                                                                                                               |
 
 
 #### SendMessageOptions

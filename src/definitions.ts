@@ -7,6 +7,12 @@ export interface WebSocketPlugin {
     connect(options: ConnectionOptions): Promise<void>;
 
     /**
+     * Close the connection.
+     * @param options
+     */
+    close(options?: CloseOptions): Promise<void>;
+
+    /**
      * Send a message.
      * @param options The options for the message.
      * @since 0.0.1
@@ -167,4 +173,23 @@ export interface OnErrorData {
      * @since 0.0.1
      */
     error: string;
+}
+
+export interface CloseOptions {
+    /**
+     * The ID uniquely identifies a connection; no input is required, if you do not need multiple connections.
+     */
+    id?: string;
+
+    /**
+     * An integer WebSocket connection close code value indicating a reason for closure.
+     * Status code as defined by
+     * [Section 7.4 of RFC 6455](http://tools.ietf.org/html/rfc6455#section-7.4).
+     */
+    code?: number;
+
+    /**
+     * A string explaining the reason for the connection close.
+     */
+    reason?: string;
 }

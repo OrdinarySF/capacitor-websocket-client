@@ -1,6 +1,7 @@
 import {WebPlugin} from '@capacitor/core';
 
 import type {
+    CloseOptions,
     ConnectionOptions,
     OnCloseCallback,
     OnCloseOptions,
@@ -20,6 +21,12 @@ export class WebSocketWeb extends WebPlugin implements WebSocketPlugin {
     async connect(options: ConnectionOptions): Promise<void> {
         if (options.id === undefined) options.id = "default"
         await websocket.connect(options.url, options.id)
+    }
+
+    async close(options?: CloseOptions): Promise<void> {
+        if (options === undefined) options = {id: "default"}
+        if (options.id === undefined) options.id = "default"
+        await websocket.close(options.id, options.code, options.reason)
     }
 
     async send(options: SendMessageOptions): Promise<void> {
