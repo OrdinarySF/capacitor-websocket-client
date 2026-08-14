@@ -27,8 +27,7 @@ npx cap sync
 
 - Web
 - Android
-
-> Unfortunately, we do not have a macOS device, but we are working hard.
+- iOS
 
 ## Example
 
