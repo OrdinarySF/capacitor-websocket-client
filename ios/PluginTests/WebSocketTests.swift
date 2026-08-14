@@ -66,4 +66,41 @@ class WebSocketTests: XCTestCase {
         XCTAssertTrue(socket.close(id: "a", code: 1000, reason: "done"))
         XCTAssertTrue(socket.hasConnection(id: "b"))
     }
+
+    func testLiveEchoRoundTrip() {
+        let openExp = expectation(description: "open")
+        let msgExp = expectation(description: "echoed ping")
+        let closeExp = expectation(description: "close")
+
+        socket.setOnOpen(id: "echo") { id in
+            XCTAssertEqual(id, "echo")
+            openExp.fulfill()
+        }
+        socket.setOnMessage(id: "echo") { _, data in
+            if data == "ping-ios" {
+                msgExp.fulfill()
+            }
+        }
+        socket.setOnClose(id: "echo") { _, _, _ in
+            closeExp.fulfill()
+        }
+        socket.setOnError(id: "echo") { _, error in
+            XCTFail("unexpected error: \(error)")
+        }
+
+        let result = socket.connect(url: "wss://echo.websocket.events", id: "echo")
+        XCTAssertEqual(result, .success("echo"))
+        wait(for: [openExp], timeout: 20)
+
+        let sendExp = expectation(description: "send")
+        socket.send(id: "echo", data: "ping-ios") { success in
+            XCTAssertTrue(success)
+            sendExp.fulfill()
+        }
+        wait(for: [sendExp, msgExp], timeout: 20)
+
+        XCTAssertTrue(socket.close(id: "echo", code: 1000, reason: "done"))
+        wait(for: [closeExp], timeout: 15)
+    }
+
 }
