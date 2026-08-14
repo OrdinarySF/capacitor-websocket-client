@@ -1,5 +1,7 @@
 name: iOS
-on: workflow_dispatch
+on:
+  pull_request:
+  workflow_dispatch:
 jobs:
   ios:
     runs-on: macos-15
@@ -9,3 +11,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - run: npm ci
+      - run: npm run verify:ios
+      - run: npm run test:ios
