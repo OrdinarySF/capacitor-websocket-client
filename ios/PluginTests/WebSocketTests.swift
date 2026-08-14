@@ -88,7 +88,7 @@ class WebSocketTests: XCTestCase {
             XCTFail("unexpected error: \(error)")
         }
 
-        let result = socket.connect(url: "wss://echo.websocket.events", id: "echo")
+        let result = socket.connect(url: "wss://ws.postman-echo.com/raw", id: "echo")
         XCTAssertEqual(result, .success("echo"))
         wait(for: [openExp], timeout: 20)
 
