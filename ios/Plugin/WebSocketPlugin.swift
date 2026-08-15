@@ -7,6 +7,21 @@ import Capacitor
 @objc(WebSocketPlugin)
 public class WebSocketPlugin: CAPPlugin {
     private let implementation = WebSocket()
+    private var keptCalls: [String: CAPPluginCall] = [:]
+
+    deinit {
+        implementation.invalidate()
+        let calls = keptCalls
+        let pluginBridge = bridge
+        keptCalls.removeAll()
+        // Invalidate first, then release on main so a call mid-resolve can finish.
+        DispatchQueue.main.async {
+            for (_, call) in calls {
+                call.keepAlive = false
+                pluginBridge?.releaseCall(call)
+            }
+        }
+    }
 
     @objc func connect(_ call: CAPPluginCall) {
         let result = implementation.connect(url: call.getString("url"), id: call.getString("id"))
@@ -46,7 +61,7 @@ public class WebSocketPlugin: CAPPlugin {
 
     @objc func onOpen(_ call: CAPPluginCall) {
         let id = WebSocket.resolvedId(call.getString("id"))
-        call.keepAlive = true
+        retainCall(call, forKey: "open:\(id)")
         implementation.setOnOpen(id: id) { connId in
             DispatchQueue.main.async {
                 call.resolve([
@@ -58,7 +73,7 @@ public class WebSocketPlugin: CAPPlugin {
 
     @objc func onMessage(_ call: CAPPluginCall) {
         let id = WebSocket.resolvedId(call.getString("id"))
-        call.keepAlive = true
+        retainCall(call, forKey: "message:\(id)")
         implementation.setOnMessage(id: id) { connId, data in
             DispatchQueue.main.async {
                 call.resolve([
@@ -71,7 +86,7 @@ public class WebSocketPlugin: CAPPlugin {
 
     @objc func onClose(_ call: CAPPluginCall) {
         let id = WebSocket.resolvedId(call.getString("id"))
-        call.keepAlive = true
+        retainCall(call, forKey: "close:\(id)")
         implementation.setOnClose(id: id) { connId, code, reason in
             DispatchQueue.main.async {
                 call.resolve([
@@ -85,7 +100,7 @@ public class WebSocketPlugin: CAPPlugin {
 
     @objc func onError(_ call: CAPPluginCall) {
         let id = WebSocket.resolvedId(call.getString("id"))
-        call.keepAlive = true
+        retainCall(call, forKey: "error:\(id)")
         implementation.setOnError(id: id) { connId, error in
             DispatchQueue.main.async {
                 call.resolve([
@@ -94,6 +109,15 @@ public class WebSocketPlugin: CAPPlugin {
                 ])
             }
         }
+    }
+
+    private func retainCall(_ call: CAPPluginCall, forKey key: String) {
+        if let previous = keptCalls.removeValue(forKey: key) {
+            previous.keepAlive = false
+            bridge?.releaseCall(previous)
+        }
+        call.keepAlive = true
+        keptCalls[key] = call
     }
 
     private func resolveOnMain(_ call: CAPPluginCall) {

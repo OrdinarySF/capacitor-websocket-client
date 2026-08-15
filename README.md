@@ -29,6 +29,8 @@ npx cap sync
 - Android
 - iOS
 
+On iOS, close codes that `URLSessionWebSocketTask` cannot send (3000–3999, 4000–4999, and reserved codes such as 1005, 1006, and 1015) are written on the wire as 1001 (`goingAway`). The local `onClose` callback still reports the code you requested.
+
 ## Example
 
 #### Single connect
