@@ -1,0 +1,16 @@
+name: iOS
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run verify:ios
+      - run: npm run test:ios
