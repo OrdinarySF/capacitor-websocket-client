@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 object WebSocket {
     private val okClient = OkHttpClient.Builder().build()
+    private val connectLock = Any()
 
     val clients = ConcurrentHashMap<String, WebSocket>()
 
@@ -21,43 +22,50 @@ object WebSocket {
 
     fun createConnect(id: String, url: String, bridge: Bridge): WebSocket {
         Log.v(TAG, "createConnect")
-        clients.remove(id)?.cancel()
-        val wsClient = okClient.newWebSocket(Request.Builder().url(url).build(), object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.v(TAG, "client onOpen called, id: $id")
-                val ret = JSObject()
-                ret.put("id", id)
-                emit(bridge, openCallId, id, ret)
-            }
+        val request = Request.Builder().url(url).build()
+        synchronized(connectLock) {
+            clients.remove(id)?.cancel()
+            val wsClient = okClient.newWebSocket(request, object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    Log.v(TAG, "client onOpen called, id: $id")
+                    if (webSocket !== clients[id]) return
+                    val ret = JSObject()
+                    ret.put("id", id)
+                    emit(bridge, openCallId, id, ret, webSocket)
+                }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                Log.v(TAG, "client onMessage called, id: $id, text: $text")
-                val ret = JSObject()
-                ret.put("id", id)
-                ret.put("data", text)
-                emit(bridge, messageCallId, id, ret)
-            }
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    Log.v(TAG, "client onMessage called, id: $id, text: $text")
+                    if (webSocket !== clients[id]) return
+                    val ret = JSObject()
+                    ret.put("id", id)
+                    ret.put("data", text)
+                    emit(bridge, messageCallId, id, ret, webSocket)
+                }
 
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                Log.v(TAG, "client onClosed called, id: $id, code: $code, reason: $reason")
-                val ret = JSObject()
-                ret.put("id", id)
-                ret.put("code", code)
-                ret.put("reason", reason)
-                emit(bridge, closedCallId, id, ret)
-            }
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                    Log.v(TAG, "client onClosed called, id: $id, code: $code, reason: $reason")
+                    if (webSocket !== clients[id]) return
+                    val ret = JSObject()
+                    ret.put("id", id)
+                    ret.put("code", code)
+                    ret.put("reason", reason)
+                    emit(bridge, closedCallId, id, ret, webSocket)
+                }
 
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.v(TAG, "client onFailure called, id: $id")
-                Log.e(TAG, t.message, t)
-                val ret = JSObject()
-                ret.put("id", id)
-                ret.put("error", t.message)
-                emit(bridge, failureCallId, id, ret)
-            }
-        })
-        clients[id] = wsClient
-        return wsClient
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                    Log.v(TAG, "client onFailure called, id: $id")
+                    Log.e(TAG, t.message, t)
+                    if (webSocket !== clients[id]) return
+                    val ret = JSObject()
+                    ret.put("id", id)
+                    ret.put("error", t.message)
+                    emit(bridge, failureCallId, id, ret, webSocket)
+                }
+            })
+            clients[id] = wsClient
+            return wsClient
+        }
     }
 
     fun sendMessage(id: String, message: String): Boolean {
@@ -104,14 +112,17 @@ object WebSocket {
         bridge: Bridge,
         ids: ConcurrentHashMap<String, String>,
         id: String,
-        payload: JSObject
+        payload: JSObject,
+        webSocket: WebSocket
     ) {
+        if (webSocket !== clients[id]) return
         val callId = ids[id] ?: return
         val call: PluginCall? = bridge.getSavedCall(callId)
         if (call == null) {
-            ids.remove(id)
+            ids.remove(id, callId)
             return
         }
+        if (webSocket !== clients[id]) return
         call.successCallback(PluginResult(payload))
     }
 }
