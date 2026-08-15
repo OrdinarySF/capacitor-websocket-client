@@ -78,6 +78,11 @@ class WebSocketPlugin : Plugin() {
         WebSocket.onFailure(id, call.callbackId)
     }
 
+    override fun handleOnDestroy() {
+        WebSocket.reset()
+        super.handleOnDestroy()
+    }
+
     private fun getStringForCall(call: PluginCall, name: String): String? {
         val id = call.getString(name)
         if (id == null) call.reject("$name can not null.");
