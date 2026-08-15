@@ -1,11 +1,9 @@
 package cn.holmescraft.capacitor.plugins.websocket.client
 
-import android.util.Log
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
-import okhttp3.internal.wait
 
 @CapacitorPlugin(name = "WebSocket")
 class WebSocketPlugin : Plugin() {
@@ -14,13 +12,7 @@ class WebSocketPlugin : Plugin() {
         val id = call.getString("id") ?: "default"
         val url = getStringForCall(call, "url") ?: return
 
-        synchronized(id.intern()) {
-            WebSocket.createConnect(id, url, getBridge())
-            while (!WebSocket.clients.containsKey(id)) {
-                Log.v(TAG, "wait connection finish")
-                id.intern().wait()
-            }
-        }
+        WebSocket.createConnect(id, url, getBridge())
         call.resolve()
     }
 
