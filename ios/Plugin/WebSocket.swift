@@ -3,11 +3,14 @@ import Foundation
 enum WebSocketError: Error, Equatable {
     case missingUrl
     case invalidUrl
+    case sessionInvalidated
 
     var message: String {
         switch self {
         case .missingUrl, .invalidUrl:
             return "url can not null."
+        case .sessionInvalidated:
+            return "session invalidated"
         }
     }
 }
@@ -17,20 +20,41 @@ enum WebSocketError: Error, Equatable {
     public static let defaultId = "default"
     public static let defaultCloseCode = 1000
     public static let defaultCloseReason = ""
+    private static let pingInterval: TimeInterval = 30
 
     public static func resolvedId(_ id: String?) -> String {
-        guard let id = id, !id.isEmpty else {
-            return defaultId
-        }
-        return id
+        id ?? defaultId
     }
 
-    private struct Client {
+    private final class Client {
+        let id: String
         let task: URLSessionWebSocketTask
         var didNotifyClose = false
         var didNotifyError = false
         var pendingCloseCode: Int?
         var pendingCloseReason: String?
+        var pingTimer: DispatchSourceTimer?
+
+        init(id: String, task: URLSessionWebSocketTask) {
+            self.id = id
+            self.task = task
+        }
+
+        func startPing() {
+            stopPing()
+            let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+            timer.schedule(deadline: .now() + WebSocket.pingInterval, repeating: WebSocket.pingInterval)
+            timer.setEventHandler { [weak self] in
+                self?.task.sendPing { _ in }
+            }
+            timer.resume()
+            pingTimer = timer
+        }
+
+        func stopPing() {
+            pingTimer?.cancel()
+            pingTimer = nil
+        }
     }
 
     private final class SessionDelegate: NSObject, URLSessionWebSocketDelegate {
@@ -51,10 +75,14 @@ enum WebSocketError: Error, Equatable {
 
     private let lock = NSLock()
     private var clients: [String: Client] = [:]
+    private var clientsByTask: [ObjectIdentifier: Client] = [:]
     private var openHandlers: [String: (String) -> Void] = [:]
     private var messageHandlers: [String: (String, String) -> Void] = [:]
     private var closeHandlers: [String: (String, Int, String) -> Void] = [:]
     private var errorHandlers: [String: (String, String) -> Void] = [:]
+    private var sessionInvalidated = false
+    /// Test seam: replaced client pruned without emitting to JS.
+    var onSuppressedTerminal: (() -> Void)?
 
     private let sessionDelegate = SessionDelegate()
     private var session: URLSession!
@@ -65,11 +93,15 @@ enum WebSocketError: Error, Equatable {
         let queue = OperationQueue()
         queue.name = "cn.holmescraft.capacitor.websocket"
         queue.maxConcurrentOperationCount = 1
-        session = URLSession(configuration: .default, delegate: sessionDelegate, delegateQueue: queue)
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = .infinity
+        configuration.timeoutIntervalForResource = .infinity
+        session = URLSession(configuration: configuration, delegate: sessionDelegate, delegateQueue: queue)
     }
 
     deinit {
-        session.invalidateAndCancel()
+        teardownLockedClients(cancelTasks: false)
+        invalidateSessionIfNeeded()
     }
 
     // MARK: - Callbacks
@@ -112,11 +144,19 @@ enum WebSocketError: Error, Equatable {
         let connId = WebSocket.resolvedId(id)
 
         lock.lock()
+        if sessionInvalidated {
+            lock.unlock()
+            return .failure(.sessionInvalidated)
+        }
         if let existing = clients[connId] {
+            existing.stopPing()
+            existing.pendingCloseCode = URLSessionWebSocketTask.CloseCode.goingAway.rawValue
             existing.task.cancel(with: .goingAway, reason: nil)
         }
         let task = session.webSocketTask(with: wsURL)
-        clients[connId] = Client(task: task)
+        let client = Client(id: connId, task: task)
+        clients[connId] = client
+        clientsByTask[ObjectIdentifier(task)] = client
         lock.unlock()
 
         task.resume()
@@ -142,18 +182,16 @@ enum WebSocketError: Error, Equatable {
     @discardableResult
     func close(id: String, code: Int, reason: String) -> Bool {
         lock.lock()
-        guard var client = clients[id] else {
+        guard let client = clients[id] else {
             lock.unlock()
             return false
         }
         client.pendingCloseCode = code
         client.pendingCloseReason = reason
-        clients[id] = client
         let task = client.task
         lock.unlock()
 
-        let closeCode = URLSessionWebSocketTask.CloseCode(rawValue: code) ?? .normalClosure
-        task.cancel(with: closeCode, reason: Self.closeReasonData(reason))
+        task.cancel(with: Self.wireCloseCode(for: code), reason: Self.closeReasonData(reason))
         return true
     }
 
@@ -164,14 +202,8 @@ enum WebSocketError: Error, Equatable {
     }
 
     func invalidate() {
-        lock.lock()
-        let tasks = clients.values.map { $0.task }
-        clients.removeAll()
-        lock.unlock()
-        for task in tasks {
-            task.cancel(with: .goingAway, reason: nil)
-        }
-        session.invalidateAndCancel()
+        teardownLockedClients(cancelTasks: true)
+        invalidateSessionIfNeeded()
     }
 
     // MARK: - Receive loop
@@ -181,12 +213,14 @@ enum WebSocketError: Error, Equatable {
             guard let self = self else { return }
             switch result {
             case .success(let message):
+                guard self.isCurrent(task, id: id) else { return }
                 switch message {
                 case .string(let text):
-                    self.emitMessage(id: id, data: text)
+                    self.emitMessage(id: id, task: task, data: text)
                 case .data(let data):
+                    // Skip non-UTF-8 binary frames (Android is text-only; no binary JS API).
                     if let text = String(data: data, encoding: .utf8) {
-                        self.emitMessage(id: id, data: text)
+                        self.emitMessage(id: id, task: task, data: text)
                     }
                 @unknown default:
                     break
@@ -203,44 +237,73 @@ enum WebSocketError: Error, Equatable {
     // MARK: - Delegate handlers
 
     fileprivate func handleOpen(_ task: URLSessionWebSocketTask) {
-        guard let id = connectionId(for: task) else { return }
         lock.lock()
+        guard let client = client(for: task), isCurrentLocked(client) else {
+            lock.unlock()
+            return
+        }
+        client.startPing()
+        let id = client.id
         let handler = openHandlers[id]
         lock.unlock()
+        guard isCurrent(task, id: id) else { return }
         handler?(id)
     }
 
     fileprivate func handleClose(_ task: URLSessionWebSocketTask, code: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        guard let id = connectionId(for: task) else { return }
         let reasonString = reason.flatMap { String(data: $0, encoding: .utf8) } ?? ""
-        emitCloseOnce(id: id, code: code.rawValue, reason: reasonString)
+        lock.lock()
+        guard let client = client(for: task) else {
+            lock.unlock()
+            return
+        }
+        let emit = emitCloseOnceLocked(client, code: code.rawValue, reason: reasonString)
+        lock.unlock()
+        emit?()
     }
 
     fileprivate func handleComplete(_ task: URLSessionTask, error: Error?) {
-        guard let id = connectionId(for: task) else { return }
+        lock.lock()
+        guard let client = client(for: task) else {
+            lock.unlock()
+            return
+        }
 
         if let error = error {
             let nsError = error as NSError
             if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
-                emitPendingOrDefaultClose(id: id)
+                let emit = emitCloseOnceLocked(
+                    client,
+                    code: URLSessionWebSocketTask.CloseCode.normalClosure.rawValue,
+                    reason: ""
+                )
+                lock.unlock()
+                emit?()
                 return
             }
-            emitErrorOnce(id: id, message: error.localizedDescription)
+            let emit = emitErrorOnceLocked(client, message: error.localizedDescription)
+            lock.unlock()
+            emit?()
             return
         }
 
-        emitPendingOrDefaultClose(id: id)
+        let emit = emitCloseOnceLocked(
+            client,
+            code: URLSessionWebSocketTask.CloseCode.normalClosure.rawValue,
+            reason: ""
+        )
+        lock.unlock()
+        emit?()
     }
 
     // MARK: - Helpers
 
-    private func connectionId(for task: URLSessionTask) -> String? {
-        lock.lock()
-        defer { lock.unlock() }
-        for (id, client) in clients where client.task === task {
-            return id
-        }
-        return nil
+    private func client(for task: URLSessionTask) -> Client? {
+        clientsByTask[ObjectIdentifier(task)]
+    }
+
+    private func isCurrentLocked(_ client: Client) -> Bool {
+        clients[client.id] === client
     }
 
     private func isCurrent(_ task: URLSessionWebSocketTask, id: String) -> Bool {
@@ -249,45 +312,96 @@ enum WebSocketError: Error, Equatable {
         return clients[id]?.task === task
     }
 
-    private func emitMessage(id: String, data: String) {
+    private func removeClientLocked(_ client: Client) {
+        client.stopPing()
+        clientsByTask.removeValue(forKey: ObjectIdentifier(client.task))
+        if clients[client.id] === client {
+            clients.removeValue(forKey: client.id)
+        }
+    }
+
+    private func teardownLockedClients(cancelTasks: Bool) {
         lock.lock()
+        let leftover = Array(clientsByTask.values)
+        clients.removeAll()
+        clientsByTask.removeAll()
+        openHandlers.removeAll()
+        messageHandlers.removeAll()
+        closeHandlers.removeAll()
+        errorHandlers.removeAll()
+        lock.unlock()
+        for client in leftover {
+            client.stopPing()
+            if cancelTasks {
+                client.task.cancel(with: .goingAway, reason: nil)
+            }
+        }
+    }
+
+    private func invalidateSessionIfNeeded() {
+        lock.lock()
+        let already = sessionInvalidated
+        sessionInvalidated = true
+        lock.unlock()
+        guard !already else { return }
+        session.invalidateAndCancel()
+    }
+
+    private func emitMessage(id: String, task: URLSessionWebSocketTask, data: String) {
+        lock.lock()
+        guard clients[id]?.task === task else {
+            lock.unlock()
+            return
+        }
         let handler = messageHandlers[id]
         lock.unlock()
         handler?(id, data)
     }
 
-    private func emitCloseOnce(id: String, code: Int, reason: String) {
-        lock.lock()
-        guard var client = clients[id], !client.didNotifyClose else {
-            lock.unlock()
-            return
-        }
+    private func emitCloseOnceLocked(_ client: Client, code: Int, reason: String) -> (() -> Void)? {
+        guard !client.didNotifyClose else { return nil }
         client.didNotifyClose = true
-        clients[id] = client
-        let handler = closeHandlers[id]
-        lock.unlock()
-        handler?(id, code, reason)
-    }
-
-    private func emitPendingOrDefaultClose(id: String) {
-        lock.lock()
-        let code = clients[id]?.pendingCloseCode ?? URLSessionWebSocketTask.CloseCode.normalClosure.rawValue
-        let reason = clients[id]?.pendingCloseReason ?? ""
-        lock.unlock()
-        emitCloseOnce(id: id, code: code, reason: reason)
-    }
-
-    private func emitErrorOnce(id: String, message: String) {
-        lock.lock()
-        guard var client = clients[id], !client.didNotifyError else {
-            lock.unlock()
-            return
+        let emitCode = client.pendingCloseCode ?? code
+        let emitReason = client.pendingCloseReason ?? reason
+        let wasCurrent = isCurrentLocked(client)
+        let handler = wasCurrent ? closeHandlers[client.id] : nil
+        removeClientLocked(client)
+        if let handler = handler {
+            return { handler(client.id, emitCode, emitReason) }
         }
+        if !wasCurrent {
+            let notify = onSuppressedTerminal
+            return { notify?() }
+        }
+        return nil
+    }
+
+    private func emitErrorOnceLocked(_ client: Client, message: String) -> (() -> Void)? {
+        guard !client.didNotifyError else { return nil }
         client.didNotifyError = true
-        clients[id] = client
-        let handler = errorHandlers[id]
-        lock.unlock()
-        handler?(id, message)
+        let wasCurrent = isCurrentLocked(client)
+        let handler = wasCurrent ? errorHandlers[client.id] : nil
+        removeClientLocked(client)
+        if let handler = handler {
+            return { handler(client.id, message) }
+        }
+        if !wasCurrent {
+            let notify = onSuppressedTerminal
+            return { notify?() }
+        }
+        return nil
+    }
+
+    private static func wireCloseCode(for code: Int) -> URLSessionWebSocketTask.CloseCode {
+        guard let closeCode = URLSessionWebSocketTask.CloseCode(rawValue: code) else {
+            return .goingAway
+        }
+        switch closeCode {
+        case .invalid, .noStatusReceived, .abnormalClosure, .tlsHandshakeFailure:
+            return .goingAway
+        default:
+            return closeCode
+        }
     }
 
     private static func closeReasonData(_ reason: String) -> Data? {
